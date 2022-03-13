@@ -1,0 +1,81 @@
+{
+  "manifestVersion": "3.2",
+  "admin": {
+    "address": "0x77F973379b8f8FEC9001FAE68206bbc9e7d2b2A7",
+    "txHash": "0xdfd951922d5b1d07ae0883aaccb5066d4250d4a244d30934ccafea369fae6dce"
+  },
+  "proxies": [
+    {
+      "address": "0x56EA1648a0174AFC0bCf3B1ee5f406A065640A4B",
+      "txHash": "0x2a910e2fed9a580f24f77346974308b6da374012257e4cf058d009c7839421ba",
+      "kind": "transparent"
+    }
+  ],
+  "impls": {
+    "1d1a66c515177fff54d45231c78afd73726d9a0c4d9ed9a08fd86310c318565e": {
+      "address": "0x3ac4F90698b74348Bd15a64Cf0Df4f4B0C6C2032",
+      "txHash": "0xfbad6f89974a440fbb9d0ebcc2ddcf9c15914d7ce7583996ae01e240a2e6e931",
+      "layout": {
+        "storage": [
+          {
+            "label": "_initialized",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_bool",
+            "contract": "Initializable",
+            "src": "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:39"
+          },
+          {
+            "label": "_initializing",
+            "offset": 1,
+            "slot": "0",
+            "type": "t_bool",
+            "contract": "Initializable",
+            "src": "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:44"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "1",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "ContextUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol:36"
+          },
+          {
+            "label": "_owner",
+            "offset": 0,
+            "slot": "51",
+            "type": "t_address",
+            "contract": "OwnableUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol:22"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "52",
+            "type": "t_array(t_uint256)49_storage",
+            "contract": "OwnableUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol:87"
+          }
+        ],
+        "types": {
+          "t_address": {
+            "label": "address"
+          },
+          "t_array(t_uint256)49_storage": {
+            "label": "uint256[49]"
+          },
+          "t_array(t_uint256)50_storage": {
+            "label": "uint256[50]"
+          },
+          "t_bool": {
+            "label": "bool"
+          },
+          "t_uint256": {
+            "label": "uint256"
+          }
+        }
+      }
+    }
+  }
+}

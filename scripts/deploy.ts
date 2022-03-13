@@ -1,9 +1,11 @@
 import { ethers, upgrades } from "hardhat";
 
 async function main() {
-  const Zapper = await ethers.getContractFactory("Zapper");
-  const zapper = await upgrades.deployProxy(Zapper);
-  console.log("Zapper deployed to:", zapper.address);
+  const ZapperUpgradeable = await ethers.getContractFactory(
+    "ZapperUpgradeable"
+  );
+  const zapper = await upgrades.deployProxy(ZapperUpgradeable);
+  console.log("ZapperUpgradeable deployed to:", zapper.address);
 }
 
 main().catch((error) => {

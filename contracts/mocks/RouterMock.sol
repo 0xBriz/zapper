@@ -1,8 +1,12 @@
 // SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.4;
 
-interface IUniswapV2Router {
-    function factory() external pure returns (address);
+import "../interfaces/IUniswapV2Router.sol";
+
+contract RouterMock is IUniswapV2Router {
+    function factory() external pure override returns (address) {
+        //
+    }
 
     function addLiquidity(
         address tokenA,
@@ -15,11 +19,15 @@ interface IUniswapV2Router {
         uint256 deadline
     )
         external
+        override
         returns (
             uint256 amountA,
             uint256 amountB,
             uint256 liquidity
-        );
+        )
+    {
+        //
+    }
 
     function swapExactTokensForTokens(
         uint256 amountIn,
@@ -27,5 +35,7 @@ interface IUniswapV2Router {
         address[] calldata path,
         address to,
         uint256 deadline
-    ) external returns (uint256[] memory amounts);
+    ) external override returns (uint256[] memory amounts) {
+        //
+    }
 }

@@ -1,19 +1,24 @@
 // SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.4;
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import "./interfaces/IUniswapV2Router.sol";
 import "./interfaces/IUniswapV2Pair.sol";
 
-contract Zapper is Ownable {
-    using SafeERC20 for IERC20;
+contract ZapperUpgradeable is OwnableUpgradeable {
+    using SafeERC20Upgradeable for ERC20Upgradeable;
 
     event ZappedInLP(
         address indexed who,
         address indexed pairAddress,
         uint256 indexed lpAmount
     );
+
+    function initialize() public initializer {
+        __Ownable_init();
+    }
 
     function zapInWithPath(
         address _tokenInAddress,
@@ -22,9 +27,9 @@ contract Zapper is Ownable {
         address _routerAddress,
         address[] calldata _path
     ) public {
-        require(_tokenInAddress != address(0), "!TokenIn address");
-        require(_pairAddress != address(0), "!LP address");
-        require(_routerAddress != address(0), "!Router address");
+        require(_tokenInAddress != address(0), "TokenIn address");
+        require(_pairAddress != address(0), "LP address");
+        require(_routerAddress != address(0), "Router address");
         require(_tokenInAmount > 0, "!tokenInAmount");
         require(_path.length >= 2, "!path");
 
@@ -55,7 +60,7 @@ contract Zapper is Ownable {
 
     /// @dev Set routing path accordingly for the pair, given the desired input token
     function _getTokenInTokenOut(address _tokenInAddress, IUniswapV2Pair pair)
-        internal
+        private
         view
         returns (address tokenIn, address tokenOut)
     {
@@ -70,21 +75,24 @@ contract Zapper is Ownable {
     }
 
     function _pullCallersTokens(address _tokenInAddress, uint256 _tokenInAmount)
-        internal
+        private
     {
         require(_tokenInAmount > 0, "Zero amount");
         require(
-            ERC20(_tokenInAddress).allowance(msg.sender, address(this)) >=
-                _tokenInAmount,
+            ERC20Upgradeable(_tokenInAddress).allowance(
+                msg.sender,
+                address(this)
+            ) >= _tokenInAmount,
             "Input token is not approved"
         );
         require(
-            ERC20(_tokenInAddress).balanceOf(msg.sender) >= _tokenInAmount,
+            ERC20Upgradeable(_tokenInAddress).balanceOf(msg.sender) >=
+                _tokenInAmount,
             "User balance too low"
         );
 
         // Pull in callers tokens and setup for swap before LP
-        IERC20(_tokenInAddress).safeTransferFrom(
+        ERC20Upgradeable(_tokenInAddress).safeTransferFrom(
             msg.sender,
             address(this),
             _tokenInAmount
@@ -98,7 +106,7 @@ contract Zapper is Ownable {
         address[] calldata _path,
         address tokenIn,
         address otherToken
-    ) internal returns (uint256 liquidity) {
+    ) private returns (uint256 liquidity) {
         uint256[] memory amounts = _swap(
             _tokenInAmount,
             tokenIn,
@@ -124,7 +132,7 @@ contract Zapper is Ownable {
         address _tokenIn,
         address _routerAddress,
         address[] memory _path
-    ) internal returns (uint256[] memory) {
+    ) private returns (uint256[] memory) {
         uint256 sellAmount = _tokenInAmount / 2;
         _approveRouter(_tokenIn, _routerAddress);
         return
@@ -144,7 +152,7 @@ contract Zapper is Ownable {
         address _routerAddress,
         uint256 _tokenInLpAmount,
         uint256 _otherTokenLpAmount
-    ) internal returns (uint256 liquidity) {
+    ) private returns (uint256 liquidity) {
         _approveRouter(_otherToken, _routerAddress);
         _approveRouter(_pairAddress, _routerAddress);
         (, , liquidity) = IUniswapV2Router(_routerAddress).addLiquidity(
@@ -161,9 +169,9 @@ contract Zapper is Ownable {
 
     function _validatePairForRouter(
         address _pairAddress,
-        address _inputTokenAddress,
+        address _validateTokenAddress,
         address _routerAddress
-    ) internal view returns (IUniswapV2Pair pair) {
+    ) private view returns (IUniswapV2Pair pair) {
         // Validate input token and LP pair against router
         pair = IUniswapV2Pair(_pairAddress);
         require(
@@ -171,19 +179,22 @@ contract Zapper is Ownable {
             "Incompatible liquidity pair factory"
         );
         require(
-            pair.token0() == _inputTokenAddress ||
-                pair.token1() == _inputTokenAddress,
+            pair.token0() == _validateTokenAddress ||
+                pair.token1() == _validateTokenAddress,
             "Input token not present in liquidity pair"
         );
     }
 
     function _approveRouter(address _tokenAddress, address _routerAddress)
-        internal
+        private
     {
         if (
-            IERC20(_tokenAddress).allowance(address(this), _routerAddress) == 0
+            ERC20Upgradeable(_tokenAddress).allowance(
+                address(this),
+                _routerAddress
+            ) == 0
         ) {
-            IERC20(_tokenAddress).safeApprove(
+            ERC20Upgradeable(_tokenAddress).safeApprove(
                 _routerAddress,
                 type(uint256).max
             );
@@ -191,9 +202,9 @@ contract Zapper is Ownable {
     }
 
     /// @dev Return any dust left over to caller after operations are complete
-    function _returnAssets(address[] memory _tokens) internal {
+    function _returnAssets(address[] memory _tokens) private {
         for (uint256 i = 0; i < _tokens.length; i++) {
-            IERC20 token = IERC20(_tokens[i]);
+            ERC20Upgradeable token = ERC20Upgradeable(_tokens[i]);
             uint256 crumbs = token.balanceOf(address(this));
             if (crumbs > 0) {
                 token.safeTransfer(msg.sender, crumbs);
@@ -206,11 +217,11 @@ contract Zapper is Ownable {
         address _token,
         address _receiver,
         uint256 _amount
-    ) external onlyOwner {
+    ) public onlyOwner {
         require(_token != address(0), "Token address");
         require(_amount > 0, "Zero amount");
-        uint256 balance = IERC20(_token).balanceOf(address(this));
+        uint256 balance = ERC20Upgradeable(_token).balanceOf(address(this));
         require(balance >= _amount, "Zero amount");
-        IERC20(_token).safeTransfer(_receiver, _amount);
+        ERC20Upgradeable(_token).safeTransfer(_receiver, _amount);
     }
 }
