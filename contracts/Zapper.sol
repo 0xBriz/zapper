@@ -20,13 +20,13 @@ contract Zapper is Ownable {
         address _pairAddress,
         uint256 _tokenInAmount,
         address _routerAddress,
-        address[] calldata _path
+        address[] calldata _swapPath
     ) public {
         require(_tokenInAddress != address(0), "!TokenIn address");
         require(_pairAddress != address(0), "!LP address");
         require(_routerAddress != address(0), "!Router address");
         require(_tokenInAmount > 0, "!tokenInAmount");
-        require(_path.length >= 2, "!path");
+        require(_swapPath.length >= 2, "!path");
 
         IUniswapV2Pair pair = _validatePairForRouter(
             _pairAddress,
@@ -43,12 +43,12 @@ contract Zapper is Ownable {
             _pairAddress,
             _tokenInAmount,
             _routerAddress,
-            _path,
+            _swapPath,
             tokenIn,
             tokenOut
         );
 
-        _returnAssets(_path);
+        _returnAssets(_swapPath);
 
         emit ZappedInLP(msg.sender, _pairAddress, liquidity);
     }
@@ -95,7 +95,7 @@ contract Zapper is Ownable {
         address _pairAddress,
         uint256 _tokenInAmount,
         address _routerAddress,
-        address[] calldata _path,
+        address[] calldata _swapPath,
         address tokenIn,
         address otherToken
     ) internal returns (uint256 liquidity) {
@@ -103,7 +103,7 @@ contract Zapper is Ownable {
             _tokenInAmount,
             tokenIn,
             _routerAddress,
-            _path
+            _swapPath
         );
 
         uint256 tokenInLpAmount = amounts[0];
@@ -123,15 +123,17 @@ contract Zapper is Ownable {
         uint256 _tokenInAmount,
         address _tokenIn,
         address _routerAddress,
-        address[] memory _path
+        address[] memory _swapPath
     ) internal returns (uint256[] memory) {
-        uint256 sellAmount = _tokenInAmount / 2;
-        _approveRouter(_tokenIn, _routerAddress);
+         _approveRouter(_tokenIn, _routerAddress);
+
+        uint256 halfAmountIn = _tokenInAmount / 2;
+
         return
             IUniswapV2Router(_routerAddress).swapExactTokensForTokens(
-                sellAmount,
+                halfAmountIn,
                 0,
-                _path,
+                _swapPath,
                 address(this),
                 block.timestamp
             );

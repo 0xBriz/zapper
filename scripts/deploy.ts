@@ -1,11 +1,9 @@
-import { ethers, upgrades } from "hardhat";
+import { ethers } from "hardhat";
 
 async function main() {
-  const ZapperUpgradeable = await ethers.getContractFactory(
-    "ZapperUpgradeable"
-  );
-  const zapper = await upgrades.deployProxy(ZapperUpgradeable);
-  console.log("ZapperUpgradeable deployed to:", zapper.address);
+  const Zapper = await ethers.getContractFactory("Zapper");
+  const zapper = await Zapper.deploy();
+  console.log("Zapper deployed to:", zapper.address);
 }
 
 main().catch((error) => {
