@@ -34,6 +34,8 @@ contract Zapper is Ownable {
             _routerAddress
         );
 
+        _pullCallersTokens(_tokenInAddress, _tokenInAmount);
+
         (address tokenIn, address tokenOut) = _getTokenInTokenOut(
             _tokenInAddress,
             pair
@@ -125,7 +127,7 @@ contract Zapper is Ownable {
         address _routerAddress,
         address[] memory _swapPath
     ) internal returns (uint256[] memory) {
-         _approveRouter(_tokenIn, _routerAddress);
+        _approveRouter(_tokenIn, _routerAddress);
 
         uint256 halfAmountIn = _tokenInAmount / 2;
 

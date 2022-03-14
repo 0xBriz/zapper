@@ -168,6 +168,12 @@ describe("Zapper", () => {
       });
     });
 
+    describe("_pullCallersTokens()", () => {
+      it("should have the balance of token in after pulling in callers token amount", () => {
+        //
+      });
+    });
+
     describe("_getTokenInTokenOut()", () => {
       //
     });
