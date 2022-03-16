@@ -2,26 +2,29 @@ import { expect } from "chai";
 import { MockContract, MockProvider } from "ethereum-waffle";
 import { Wallet } from "ethers";
 import { ethers, waffle } from "hardhat";
-import { Zapper } from "../typechain";
+import { ZapperFlex } from "../typechain";
 import mockRouterABI from "../artifacts/contracts/mocks/RouterMock.sol/RouterMock.json";
 import pairMockABI from "../artifacts/contracts/mocks/PairMock.sol/PairMock.json";
 import inputTokenMockABI from "../artifacts/contracts/mocks/InputTokenMock.sol/InputTokenMock.json";
 
-describe("Zapper", () => {
+interface ZapInFlexArgs {
+  _tokenInAddress: string;
+  _pairAddress: string;
+  _tokenInAmount: number;
+  _routerAddress: string;
+  _pathTokenInToLp0: string[];
+  _pathTokenInToLp1: string[];
+}
+
+describe("ZapperFlex", () => {
   let user: Wallet;
   let provider: MockProvider;
-  let zapper: Zapper;
+  let zapper: ZapperFlex;
   let routerMock: MockContract;
   let pairMock: MockContract;
   let inputTokenMock: MockContract;
 
-  let zapInputArgs: {
-    _tokenInAddress: string;
-    _pairAddress: string;
-    _tokenInAmount: number;
-    _routerAddress: string;
-    _path: string[];
-  };
+  let zapInputArgs: ZapInFlexArgs;
 
   beforeEach(async () => {
     provider = waffle.provider;
@@ -35,23 +38,18 @@ describe("Zapper", () => {
       inputTokenMockABI.abi
     );
 
-    const Zapper = await ethers.getContractFactory("Zapper");
-    zapper = await Zapper.deploy();
+    const ZapperFlex = await ethers.getContractFactory("ZapperFlex");
+    zapper = await ZapperFlex.deploy();
   });
 
-  function tryZapIn(zapInputArgs: {
-    _tokenInAddress: string;
-    _pairAddress: string;
-    _tokenInAmount: number;
-    _routerAddress: string;
-    _path: string[];
-  }) {
+  function tryZapIn(zapInputArgs: ZapInFlexArgs) {
     return zapper.zapInWithPath(
       zapInputArgs._tokenInAddress,
       zapInputArgs._pairAddress,
       zapInputArgs._tokenInAmount,
       zapInputArgs._routerAddress,
-      zapInputArgs._path
+      zapInputArgs._pathTokenInToLp0,
+      zapInputArgs._pathTokenInToLp1
     );
   }
 
@@ -63,7 +61,8 @@ describe("Zapper", () => {
           _pairAddress: pairMock.address,
           _tokenInAmount: 0,
           _routerAddress: routerMock.address,
-          _path: [],
+          _pathTokenInToLp0: [],
+          _pathTokenInToLp1: [],
         };
 
         await expect(tryZapIn(zapInputArgs)).to.be.revertedWith(
@@ -77,7 +76,8 @@ describe("Zapper", () => {
           _pairAddress: ethers.constants.AddressZero,
           _tokenInAmount: 0,
           _routerAddress: routerMock.address,
-          _path: [],
+          _pathTokenInToLp0: [],
+          _pathTokenInToLp1: [],
         };
 
         await expect(tryZapIn(zapInputArgs)).to.be.revertedWith("!LP address");
@@ -89,7 +89,8 @@ describe("Zapper", () => {
           _pairAddress: pairMock.address,
           _tokenInAmount: 0,
           _routerAddress: ethers.constants.AddressZero,
-          _path: [],
+          _pathTokenInToLp0: [],
+          _pathTokenInToLp1: [],
         };
 
         await expect(tryZapIn(zapInputArgs)).to.be.revertedWith(
@@ -103,7 +104,8 @@ describe("Zapper", () => {
           _pairAddress: pairMock.address,
           _tokenInAmount: 0,
           _routerAddress: routerMock.address,
-          _path: [],
+          _pathTokenInToLp0: [],
+          _pathTokenInToLp1: [],
         };
 
         await expect(tryZapIn(zapInputArgs)).to.be.revertedWith(
@@ -112,15 +114,26 @@ describe("Zapper", () => {
       });
 
       it("should revert when routing path is too short", async () => {
+        const mockAddressOne = "0x3fF07607c5C8C619C69b1fd4C08aebF069AA10c7";
+        const mockAddressTwo = "0x2e86D29cFea7c4f422f7fCCF97986bbBa03e1a7F";
+
         zapInputArgs = {
           _tokenInAddress: inputTokenMock.address,
           _pairAddress: pairMock.address,
           _tokenInAmount: 10,
           _routerAddress: routerMock.address,
-          _path: [],
+          _pathTokenInToLp0: [],
+          _pathTokenInToLp1: [],
         };
+        await expect(tryZapIn(zapInputArgs)).to.be.revertedWith(
+          "!_pathTokenInToLp0"
+        );
 
-        await expect(tryZapIn(zapInputArgs)).to.be.revertedWith("!path");
+        zapInputArgs._pathTokenInToLp0 = [mockAddressOne, mockAddressTwo];
+
+        await expect(tryZapIn(zapInputArgs)).to.be.revertedWith(
+          "!_pathTokenInToLp1"
+        );
       });
     });
 
@@ -128,20 +141,48 @@ describe("Zapper", () => {
       const mockAddressOne = "0x3fF07607c5C8C619C69b1fd4C08aebF069AA10c7";
       const mockAddressTwo = "0x2e86D29cFea7c4f422f7fCCF97986bbBa03e1a7F";
 
-      it("should revert if the pair factory does not match the router factory", async () => {
+      it("should revert if the first address in both paths != _tokenInAddress", async () => {
         zapInputArgs = {
           _tokenInAddress: inputTokenMock.address,
           _pairAddress: pairMock.address,
           _tokenInAmount: 10,
           _routerAddress: routerMock.address,
-          _path: [mockAddressOne, mockAddressTwo],
+          _pathTokenInToLp0: [mockAddressOne, mockAddressTwo],
+          _pathTokenInToLp1: [mockAddressOne, mockAddressTwo],
         };
 
         await pairMock.mock.factory.returns(mockAddressOne);
         await routerMock.mock.factory.returns(mockAddressTwo);
 
         await expect(tryZapIn(zapInputArgs)).to.be.revertedWith(
-          "Incompatible liquidity pair factory"
+          "_tokenInToLp0[0] != _tokenInAddress"
+        );
+
+        // Make first one pass
+        zapInputArgs._pathTokenInToLp0 = [
+          inputTokenMock.address,
+          mockAddressTwo,
+        ];
+        zapInputArgs._pathTokenInToLp1 = [mockAddressOne, mockAddressTwo];
+
+        await expect(tryZapIn(zapInputArgs)).to.be.revertedWith(
+          "_tokenInToLp1[0] != _tokenInAddress"
+        );
+      });
+
+      it("should revert if the pair factory does not match the router factory", async () => {
+        zapInputArgs = {
+          _tokenInAddress: inputTokenMock.address,
+          _pairAddress: pairMock.address,
+          _tokenInAmount: 10,
+          _routerAddress: routerMock.address,
+          _pathTokenInToLp0: [inputTokenMock.address, mockAddressTwo],
+          _pathTokenInToLp1: [inputTokenMock.address, mockAddressTwo],
+        };
+        await pairMock.mock.factory.returns(mockAddressOne);
+        await routerMock.mock.factory.returns(mockAddressTwo);
+        await expect(tryZapIn(zapInputArgs)).to.be.revertedWith(
+          "Mismatched factories"
         );
       });
 
@@ -151,31 +192,41 @@ describe("Zapper", () => {
           _pairAddress: pairMock.address,
           _tokenInAmount: 10,
           _routerAddress: routerMock.address,
-          _path: [mockAddressOne, mockAddressTwo],
+          _pathTokenInToLp0: [inputTokenMock.address, mockAddressOne],
+          _pathTokenInToLp1: [inputTokenMock.address, mockAddressTwo],
         };
 
         // Make factories match first for next test step
         await pairMock.mock.factory.returns(mockAddressOne);
         await routerMock.mock.factory.returns(mockAddressOne);
 
-        await pairMock.mock.token0.returns(mockAddressOne);
+        // Expects the last two items in the paths array to be the lP combo
+        await pairMock.mock.token0.returns(
+          "0xb783e21fb34108a24a5c805765ebc9999ac541a2"
+        );
+
+        // mapped to last item in the path array to pass here
         await pairMock.mock.token1.returns(mockAddressTwo);
 
-        // zapInputArgs token won't be in pair mocked addresses
         await expect(tryZapIn(zapInputArgs)).to.be.revertedWith(
-          "Input token not present in liquidity pair"
+          "!lpToken0 not in pair"
+        );
+
+        // Make this pass first
+        await pairMock.mock.token0.returns(mockAddressOne);
+        // Same address just to test failure
+        await pairMock.mock.token1.returns(mockAddressOne);
+
+        await expect(tryZapIn(zapInputArgs)).to.be.revertedWith(
+          "!lpToken1 not in pair"
         );
       });
     });
 
-    describe("_pullCallersTokens()", () => {
-      it("should have the balance of token in after pulling in callers token amount", () => {
+    describe("_swapInputTokenForLpMember()", () => {
+      it("should", () => {
         //
       });
-    });
-
-    describe("_getTokenInTokenOut()", () => {
-      //
     });
   });
 });
