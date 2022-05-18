@@ -263,12 +263,12 @@ contract FeeZapper is Ownable, ReentrancyGuard {
         private
         returns (uint256 tokenAmountAfterFee)
     {
-        tokenAmountAfterFee = quoteFeeAmount(_tokenInAmount);
-        uint256 feeAmount = _tokenInAmount - tokenAmountAfterFee;
+        uint256 feeAmount = quoteFeeAmount(_tokenInAmount);
         uint256 amountToTreasury = feeAmount / 2;
         uint256 amountToDev = feeAmount - amountToTreasury;
         IERC20(_tokenInAddress).safeTransfer(treasuryAddress, amountToTreasury);
         IERC20(_tokenInAddress).safeTransfer(devAddress, amountToDev);
+        tokenAmountAfterFee = _tokenInAmount - feeAmount;
     }
 
     function quoteFeeAmount(uint256 _tokenInAmount)
