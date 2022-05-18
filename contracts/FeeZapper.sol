@@ -13,7 +13,7 @@ contract FeeZapper is Ownable, ReentrancyGuard {
 
     uint256 public zapFee = 1;
     uint256 public constant ZAP_FEE_DENOMINATOR = 100;
-    uint256 public constant MAX_ZAP_FEE = 3;
+    uint256 private constant MAX_ZAP_FEE = 3;
 
     // Fee receivers
     address public treasuryAddress;
@@ -76,38 +76,187 @@ contract FeeZapper is Ownable, ReentrancyGuard {
             _tokenInAddress
         );
 
+        // Avoid stack too deep
+        address tokenIn = _tokenInAddress;
+        address pair = _pairAddress;
+        address router = _routerAddress;
+        address[] calldata path0 = _pathTokenInToLp0;
+        address[] calldata path1 = _pathTokenInToLp1;
+
+        uint256 lpAmountIn0;
+        uint256 lpAmountIn1;
+
+        if (tokenIn == IUniswapV2Router(router).WETH()) {
+            (lpAmountIn0, lpAmountIn1) = _swapETHForLP(
+                tokenIn,
+                tokenAmountAfterFee,
+                router,
+                lpToken0,
+                lpToken1,
+                path0,
+                path1
+            );
+        } else {
+            (lpAmountIn0, lpAmountIn1) = _swapForLP(
+                tokenIn,
+                tokenAmountAfterFee,
+                router,
+                lpToken0,
+                lpToken1,
+                path0,
+                path1
+            );
+        }
+
+        // Add liquidity using amount of each token returned from swaps
+        uint256 lpTokensReceived = _addLiquidity(
+            lpToken0,
+            lpToken1,
+            router,
+            lpAmountIn0,
+            lpAmountIn1
+        );
+
+        // Return anything left over after process. Contract holds zero funds.
+        _returnAssets(path0);
+        _returnAssets(path1);
+
+        emit ZappedInLP(msg.sender, pair, lpTokensReceived);
+    }
+
+    function _swapForLP(
+        address _tokenInAddress,
+        uint256 _tokenInAmount,
+        address _routerAddress,
+        address lpToken0,
+        address lpToken1,
+        address[] calldata _pathTokenInToLp0,
+        address[] calldata _pathTokenInToLp1
+    ) private returns (uint256 lpAmountIn0, uint256 lpAmountIn1) {
         // Swap half of input token to get the LP amount to be added for token0
-        uint256 lpAmountIn0 = _swapInputTokenForLpMember(
+        lpAmountIn0 = _swapInputTokenForLpMember(
             _tokenInAddress,
-            tokenAmountAfterFee,
+            _tokenInAmount,
             _routerAddress,
             lpToken0,
             _pathTokenInToLp0
         );
 
         // Swap half of input token to get the LP amount to be added for token1
-        uint256 lpAmountIn1 = _swapInputTokenForLpMember(
+        lpAmountIn1 = _swapInputTokenForLpMember(
             _tokenInAddress,
-            tokenAmountAfterFee,
+            _tokenInAmount,
             _routerAddress,
             lpToken1,
             _pathTokenInToLp1
         );
+    }
 
-        // Add liquidity using amount of each token returned from swaps
-        uint256 lpTokensReceived = _addLiquidity(
-            lpToken0,
-            lpToken1,
+    function _swapETHForLP(
+        address _tokenInAddress,
+        uint256 _tokenInAmount,
+        address _routerAddress,
+        address lpToken0,
+        address lpToken1,
+        address[] calldata _pathTokenInToLp0,
+        address[] calldata _pathTokenInToLp1
+    ) private returns (uint256 lpAmountIn0, uint256 lpAmountIn1) {
+        // WETH should be in the path here
+
+        // Swap half of input token to get the LP amount to be added for token0
+        lpAmountIn0 = _swapEthForLpMember(
+            _tokenInAddress,
+            _tokenInAmount,
             _routerAddress,
-            lpAmountIn0,
-            lpAmountIn1
+            lpToken0,
+            _pathTokenInToLp0
         );
 
-        // Return anything left over after process. Contract holds zero funds.
-        _returnAssets(_pathTokenInToLp0);
-        _returnAssets(_pathTokenInToLp1);
+        // Swap half of input token to get the LP amount to be added for token1
+        lpAmountIn1 = _swapEthForLpMember(
+            _tokenInAddress,
+            _tokenInAmount,
+            _routerAddress,
+            lpToken1,
+            _pathTokenInToLp1
+        );
+    }
 
-        emit ZappedInLP(msg.sender, _pairAddress, lpTokensReceived);
+    /// @dev Used to swap input token for each side of the liquidity pair
+    function _swapInputTokenForLpMember(
+        address _tokenInAddress,
+        uint256 _tokenInAmount,
+        address _routerAddress,
+        address _lpTokenMember,
+        address[] calldata _swapPath
+    ) private returns (uint256 lpAmountIn) {
+        _approveRouterIfNeeded(_tokenInAddress, _routerAddress);
+
+        uint256 halfAmountIn = _tokenInAmount / 2;
+        // Only make the swap if input token is not either of the two pair members
+        if (_lpTokenMember != _tokenInAddress) {
+            uint256[] memory amounts = IUniswapV2Router(_routerAddress)
+                .swapExactTokensForTokens(
+                    halfAmountIn,
+                    0,
+                    _swapPath,
+                    address(this),
+                    block.timestamp
+                );
+
+            lpAmountIn = amounts[amounts.length - 1];
+        } else {
+            // Otherwise just return half as the amount to LP with this token
+            lpAmountIn = halfAmountIn;
+        }
+    }
+
+    function _swapEthForLpMember(
+        address _tokenInAddress,
+        uint256 _amountETH,
+        address _routerAddress,
+        address _lpTokenMember,
+        address[] calldata _swapPath
+    ) private returns (uint256 lpAmountIn) {
+        _approveRouterIfNeeded(_tokenInAddress, _routerAddress);
+
+        uint256 halfAmountIn = _amountETH / 2;
+        if (_lpTokenMember != _tokenInAddress) {
+            uint256[] memory amounts = IUniswapV2Router(_routerAddress)
+                .swapExactETHForTokens{value: halfAmountIn}(
+                0,
+                _swapPath,
+                address(this),
+                block.timestamp
+            );
+
+            lpAmountIn = amounts[amounts.length - 1];
+        } else {
+            // Otherwise just return half as the amount to LP with this token
+            lpAmountIn = halfAmountIn;
+        }
+    }
+
+    function _addLiquidity(
+        address _lpToken0,
+        address _lpToken1,
+        address _routerAddress,
+        uint256 _lpAmountIn0,
+        uint256 _lpAmountIn1
+    ) private returns (uint256 liquidity) {
+        _approveRouterIfNeeded(_lpToken0, _routerAddress);
+        _approveRouterIfNeeded(_lpToken1, _routerAddress);
+
+        (, , liquidity) = IUniswapV2Router(_routerAddress).addLiquidity(
+            _lpToken0,
+            _lpToken1,
+            _lpAmountIn0,
+            _lpAmountIn1,
+            0,
+            0,
+            msg.sender,
+            block.timestamp
+        );
     }
 
     function _handleFee(uint256 _tokenInAmount, address _tokenInAddress)
@@ -118,7 +267,8 @@ contract FeeZapper is Ownable, ReentrancyGuard {
         uint256 feeAmount = _tokenInAmount - tokenAmountAfterFee;
         uint256 amountToTreasury = feeAmount / 2;
         uint256 amountToDev = feeAmount - amountToTreasury;
-        // Send them off to fee receivers
+        IERC20(_tokenInAddress).safeTransfer(treasuryAddress, amountToTreasury);
+        IERC20(_tokenInAddress).safeTransfer(devAddress, amountToDev);
     }
 
     function quoteFeeAmount(uint256 _tokenInAmount)
@@ -127,6 +277,10 @@ contract FeeZapper is Ownable, ReentrancyGuard {
         returns (uint256 tokenAmountAfterFee)
     {
         tokenAmountAfterFee = (_tokenInAmount * zapFee) / ZAP_FEE_DENOMINATOR;
+    }
+
+    function maxFee() public pure returns (uint256) {
+        return MAX_ZAP_FEE;
     }
 
     /// @dev Need to account for the fact that the input token may be apart of the pair itself.
@@ -205,57 +359,6 @@ contract FeeZapper is Ownable, ReentrancyGuard {
             caller,
             address(this),
             _tokenInAmount
-        );
-    }
-
-    /// @dev Used to swap input token for each side of the liquidity pair
-    function _swapInputTokenForLpMember(
-        address _tokenInAddress,
-        uint256 _tokenInAmount,
-        address _routerAddress,
-        address _lpTokenMember,
-        address[] calldata _swapPath
-    ) private returns (uint256 lpAmountIn) {
-        _approveRouterIfNeeded(_tokenInAddress, _routerAddress);
-
-        uint256 halfAmountIn = _tokenInAmount / 2;
-        // Only make the swap if input token is not either of the two pair members
-        if (_lpTokenMember != _tokenInAddress) {
-            uint256[] memory amounts = IUniswapV2Router(_routerAddress)
-                .swapExactTokensForTokens(
-                    halfAmountIn,
-                    0,
-                    _swapPath,
-                    address(this),
-                    block.timestamp
-                );
-
-            lpAmountIn = amounts[amounts.length - 1];
-        } else {
-            // Otherwise just return half as the amount to LP with this token
-            lpAmountIn = halfAmountIn;
-        }
-    }
-
-    function _addLiquidity(
-        address _lpToken0,
-        address _lpToken1,
-        address _routerAddress,
-        uint256 _lpAmountIn0,
-        uint256 _lpAmountIn1
-    ) private returns (uint256 liquidity) {
-        _approveRouterIfNeeded(_lpToken0, _routerAddress);
-        _approveRouterIfNeeded(_lpToken1, _routerAddress);
-
-        (, , liquidity) = IUniswapV2Router(_routerAddress).addLiquidity(
-            _lpToken0,
-            _lpToken1,
-            _lpAmountIn0,
-            _lpAmountIn1,
-            0,
-            0,
-            msg.sender,
-            block.timestamp
         );
     }
 

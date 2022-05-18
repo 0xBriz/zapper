@@ -1,7 +1,11 @@
+import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { expect } from "chai";
 import { ethers } from "hardhat";
 import { FeeZapper } from "../typechain";
-import { ZapInArgs } from "./types";
+import { ERC20_ABI } from "./abis/erc20-abi";
+import { UNI_ROUTER_ABI } from "./abis/UniRouterABI";
+import { UNIV2_PAIR_ABI } from "./abis/UniV2Pair";
+import { ZapInArgs, ZERO } from "./types";
 
 describe("FeeZapper", () => {
   let zapper: FeeZapper;
@@ -29,11 +33,39 @@ describe("FeeZapper", () => {
   const lpToken1Path = [BUSD_ADDRESS];
 
   let zapInputArgs: ZapInArgs;
+  let amesToken;
+  let busdToken;
+  let pairAmesBusdToken;
+  let router;
+  let owner: SignerWithAddress;
 
   beforeEach(async () => {
+    const accounts = await ethers.getSigners();
+    owner = accounts[0];
     const FeeZapper = await ethers.getContractFactory("FeeZapper");
     zapper = await FeeZapper.deploy(treasury, devAccount);
   });
+
+  router = new ethers.Contract(
+    ROUTER_ADDRESS,
+    UNI_ROUTER_ABI,
+    ethers.provider.getSigner()
+  );
+  amesToken = new ethers.Contract(
+    AMES_ADDRESS,
+    ERC20_ABI,
+    ethers.provider.getSigner()
+  );
+  busdToken = new ethers.Contract(
+    BUSD_ADDRESS,
+    ERC20_ABI,
+    ethers.provider.getSigner()
+  );
+  pairAmesBusdToken = new ethers.Contract(
+    PAIR_AMETHYST_BUSD_BSC,
+    UNIV2_PAIR_ABI,
+    ethers.provider.getSigner()
+  );
 
   function tryZapIn(zapInputArgs: ZapInArgs) {
     return zapper.zapInWithPath(
@@ -46,12 +78,73 @@ describe("FeeZapper", () => {
     );
   }
 
-  describe("input validation", () => {
+  async function swapForTestTokens() {
+    const WETH = await router.WETH();
+    const bnbToBusdPath = [WETH, BUSD_ADDRESS];
+    const block = await ethers.provider.getBlock(
+      await ethers.provider.getBlockNumber()
+    );
+    const expires = block.timestamp + 1000 * 60 * 2;
+    await router.swapExactETHForTokens(
+      0,
+      bnbToBusdPath,
+      owner.address,
+      expires,
+      {
+        value: ethers.utils.parseEther("1"),
+      }
+    );
+
+    const busdBalance = await busdToken.balanceOf(owner.address);
+    console.log("BUSD balance: " + ethers.utils.formatEther(busdBalance));
+  }
+
+  describe("Zapping In", () => {
+    it("should quote fees", async () => {
+      const inputAmount = ethers.utils.parseEther("100");
+      const feeAmount = await zapper.quoteFeeAmount(inputAmount);
+      // initial fee is 1%
+      expect(feeAmount).to.equal(ethers.utils.parseEther("1"));
+    });
+
+    it("should allow admin to update fee amount", async () => {
+      // initial fee is 1%
+      await zapper.updateZapFee(2);
+
+      const inputAmount = ethers.utils.parseEther("100");
+      const feeAmount = await zapper.quoteFeeAmount(inputAmount);
+      expect(feeAmount).to.equal(ethers.utils.parseEther("2"));
+    });
+
+    it("should take fees on zap in", async () => {
+      const inputAmount = ethers.utils.parseEther("1");
+      const args: ZapInArgs = {
+        _tokenInAddress: TOKEN_IN_ADDRESS,
+        _pairAddress: PAIR_ADDRESS,
+        _tokenInAmount: inputAmount,
+        _routerAddress: ROUTER_ADDRESS,
+        _pathTokenInToLp0: lpToken0Path,
+        _pathTokenInToLp1: lpToken1Path,
+      };
+
+      console.log(zapper.address);
+      //   await swapForTestTokens();
+      //   const busdBalance = await busdToken.balanceOf(owner.address);
+      //   console.log("BUSD balance: " + ethers.utils.formatEther(busdBalance));
+      //   await busdToken.approve(zapper.address, ethers.constants.MaxUint256);
+      //   await tryZapIn(args);
+      //   const lpBalance = await pairAmesBusdToken.balanceOf(owner.address);
+      //   console.log("LP balance: " + ethers.utils.formatEther(lpBalance));
+      //   expect(lpBalance).to.not.equal(0);
+    });
+  });
+
+  xdescribe("input validation", () => {
     it("should revert with input token address zero", async () => {
       zapInputArgs = {
         _tokenInAddress: ethers.constants.AddressZero,
         _pairAddress: PAIR_ADDRESS,
-        _tokenInAmount: 0,
+        _tokenInAmount: ZERO,
         _routerAddress: ROUTER_ADDRESS,
         _pathTokenInToLp0: [],
         _pathTokenInToLp1: [],
@@ -66,7 +159,7 @@ describe("FeeZapper", () => {
       zapInputArgs = {
         _tokenInAddress: TOKEN_IN_ADDRESS,
         _pairAddress: ethers.constants.AddressZero,
-        _tokenInAmount: 0,
+        _tokenInAmount: ZERO,
         _routerAddress: ROUTER_ADDRESS,
         _pathTokenInToLp0: [],
         _pathTokenInToLp1: [],
@@ -79,7 +172,7 @@ describe("FeeZapper", () => {
       zapInputArgs = {
         _tokenInAddress: TOKEN_IN_ADDRESS,
         _pairAddress: PAIR_ADDRESS,
-        _tokenInAmount: 0,
+        _tokenInAmount: ZERO,
         _routerAddress: ethers.constants.AddressZero,
         _pathTokenInToLp0: [],
         _pathTokenInToLp1: [],
@@ -94,7 +187,7 @@ describe("FeeZapper", () => {
       zapInputArgs = {
         _tokenInAddress: TOKEN_IN_ADDRESS,
         _pairAddress: PAIR_ADDRESS,
-        _tokenInAmount: 0,
+        _tokenInAmount: ZERO,
         _routerAddress: ROUTER_ADDRESS,
         _pathTokenInToLp0: [],
         _pathTokenInToLp1: [],
@@ -110,7 +203,7 @@ describe("FeeZapper", () => {
       zapInputArgs = {
         _tokenInAddress: TOKEN_IN_ADDRESS,
         _pairAddress: PAIR_ADDRESS,
-        _tokenInAmount: 10,
+        _tokenInAmount: ethers.utils.parseEther("10"),
         _routerAddress: ROUTER_ADDRESS,
         _pathTokenInToLp0: [],
         _pathTokenInToLp1: [],

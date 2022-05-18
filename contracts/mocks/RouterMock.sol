@@ -4,9 +4,9 @@ pragma solidity ^0.8.4;
 import "../interfaces/IUniswapV2Router.sol";
 
 contract RouterMock is IUniswapV2Router {
-    function factory() external pure override returns (address) {
-        //
-    }
+    function factory() external pure override returns (address) {}
+
+    function WETH() external pure override returns (address) {}
 
     function addLiquidity(
         address tokenA,
@@ -35,7 +35,12 @@ contract RouterMock is IUniswapV2Router {
         address[] calldata path,
         address to,
         uint256 deadline
-    ) external override returns (uint256[] memory amounts) {
-        //
-    }
+    ) external override returns (uint256[] memory amounts) {}
+
+    function swapExactETHForTokens(
+        uint256 amountOutMin,
+        address[] calldata path,
+        address to,
+        uint256 deadline
+    ) external payable override returns (uint256[] memory amounts) {}
 }

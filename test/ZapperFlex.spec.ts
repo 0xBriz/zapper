@@ -5,7 +5,7 @@ import { ethers, waffle } from "hardhat";
 import mockRouterABI from "../artifacts/contracts/mocks/RouterMock.sol/RouterMock.json";
 import pairMockABI from "../artifacts/contracts/mocks/PairMock.sol/PairMock.json";
 import inputTokenMockABI from "../artifacts/contracts/mocks/InputTokenMock.sol/InputTokenMock.json";
-import { ZapInArgs } from "./types";
+import { ZapInArgs, ZERO } from "./types";
 import { ZapperFlex } from "../typechain";
 
 describe("ZapperFlex", () => {
@@ -51,7 +51,7 @@ describe("ZapperFlex", () => {
         zapInputArgs = {
           _tokenInAddress: ethers.constants.AddressZero,
           _pairAddress: pairMock.address,
-          _tokenInAmount: 0,
+          _tokenInAmount: ZERO,
           _routerAddress: routerMock.address,
           _pathTokenInToLp0: [],
           _pathTokenInToLp1: [],
@@ -66,7 +66,7 @@ describe("ZapperFlex", () => {
         zapInputArgs = {
           _tokenInAddress: inputTokenMock.address,
           _pairAddress: ethers.constants.AddressZero,
-          _tokenInAmount: 0,
+          _tokenInAmount: ZERO,
           _routerAddress: routerMock.address,
           _pathTokenInToLp0: [],
           _pathTokenInToLp1: [],
@@ -79,7 +79,7 @@ describe("ZapperFlex", () => {
         zapInputArgs = {
           _tokenInAddress: inputTokenMock.address,
           _pairAddress: pairMock.address,
-          _tokenInAmount: 0,
+          _tokenInAmount: ZERO,
           _routerAddress: ethers.constants.AddressZero,
           _pathTokenInToLp0: [],
           _pathTokenInToLp1: [],
@@ -94,7 +94,7 @@ describe("ZapperFlex", () => {
         zapInputArgs = {
           _tokenInAddress: inputTokenMock.address,
           _pairAddress: pairMock.address,
-          _tokenInAmount: 0,
+          _tokenInAmount: ZERO,
           _routerAddress: routerMock.address,
           _pathTokenInToLp0: [],
           _pathTokenInToLp1: [],
@@ -112,7 +112,7 @@ describe("ZapperFlex", () => {
         zapInputArgs = {
           _tokenInAddress: inputTokenMock.address,
           _pairAddress: pairMock.address,
-          _tokenInAmount: 10,
+          _tokenInAmount: ethers.utils.parseEther("10"),
           _routerAddress: routerMock.address,
           _pathTokenInToLp0: [],
           _pathTokenInToLp1: [],
@@ -137,7 +137,7 @@ describe("ZapperFlex", () => {
         zapInputArgs = {
           _tokenInAddress: inputTokenMock.address,
           _pairAddress: pairMock.address,
-          _tokenInAmount: 10,
+          _tokenInAmount: ethers.utils.parseEther("10"),
           _routerAddress: routerMock.address,
           _pathTokenInToLp0: [mockAddressOne, mockAddressTwo],
           _pathTokenInToLp1: [mockAddressOne, mockAddressTwo],
@@ -166,7 +166,7 @@ describe("ZapperFlex", () => {
         zapInputArgs = {
           _tokenInAddress: inputTokenMock.address,
           _pairAddress: pairMock.address,
-          _tokenInAmount: 10,
+          _tokenInAmount: ethers.utils.parseEther("10"),
           _routerAddress: routerMock.address,
           _pathTokenInToLp0: [inputTokenMock.address, mockAddressTwo],
           _pathTokenInToLp1: [inputTokenMock.address, mockAddressTwo],
@@ -182,7 +182,7 @@ describe("ZapperFlex", () => {
         zapInputArgs = {
           _tokenInAddress: inputTokenMock.address,
           _pairAddress: pairMock.address,
-          _tokenInAmount: 10,
+          _tokenInAmount: ethers.utils.parseEther("10"),
           _routerAddress: routerMock.address,
           _pathTokenInToLp0: [inputTokenMock.address, mockAddressOne],
           _pathTokenInToLp1: [inputTokenMock.address, mockAddressTwo],
@@ -212,12 +212,6 @@ describe("ZapperFlex", () => {
         await expect(tryZapIn(zapInputArgs)).to.be.revertedWith(
           "!lpToken1 not in pair"
         );
-      });
-    });
-
-    describe("_swapInputTokenForLpMember()", () => {
-      it("should", () => {
-        //
       });
     });
   });
