@@ -32,6 +32,9 @@ describe("FeeZapper", () => {
   const lpToken0Path = [BUSD_ADDRESS, AMES_ADDRESS];
   const lpToken1Path = [BUSD_ADDRESS];
 
+  const wethPath0 = [];
+  const wethPath1 = [];
+
   let zapInputArgs: ZapInArgs;
   let amesToken;
   let busdToken;
@@ -117,7 +120,7 @@ describe("FeeZapper", () => {
     });
 
     it("should take fees on zap in", async () => {
-      const inputAmount = ethers.utils.parseEther("1");
+      const inputAmount = ethers.utils.parseEther("100");
       const args: ZapInArgs = {
         _tokenInAddress: TOKEN_IN_ADDRESS,
         _pairAddress: PAIR_ADDRESS,
@@ -127,15 +130,23 @@ describe("FeeZapper", () => {
         _pathTokenInToLp1: lpToken1Path,
       };
 
-      console.log(zapper.address);
-      //   await swapForTestTokens();
-      //   const busdBalance = await busdToken.balanceOf(owner.address);
-      //   console.log("BUSD balance: " + ethers.utils.formatEther(busdBalance));
-      //   await busdToken.approve(zapper.address, ethers.constants.MaxUint256);
-      //   await tryZapIn(args);
-      //   const lpBalance = await pairAmesBusdToken.balanceOf(owner.address);
-      //   console.log("LP balance: " + ethers.utils.formatEther(lpBalance));
-      //   expect(lpBalance).to.not.equal(0);
+      await swapForTestTokens();
+      const busdBalance = await busdToken.balanceOf(owner.address);
+      console.log("BUSD balance: " + ethers.utils.formatEther(busdBalance));
+      await busdToken.approve(zapper.address, ethers.constants.MaxUint256);
+      await tryZapIn(args);
+      const lpBalance = await pairAmesBusdToken.balanceOf(owner.address);
+      console.log("LP balance: " + ethers.utils.formatEther(lpBalance));
+      expect(lpBalance).to.not.equal(0);
+
+      const treasuryBalance = await busdToken.balanceOf(treasury);
+      console.log(
+        "Treasury balance: " + ethers.utils.formatEther(treasuryBalance)
+      );
+      const devAccountBalance = await busdToken.balanceOf(devAccount);
+      console.log(
+        "Team balance: " + ethers.utils.formatEther(devAccountBalance)
+      );
     });
   });
 
