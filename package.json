@@ -4,8 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "build": "npm run format && npx hardhat compile",
-    "test": "npx hardhat test",
+    "start": "npx hardhat node",
+    "build": "npx hardhat compile",
+    "test": "npx hardhat test --network localhost",
     "format": "npx prettier --write 'contracts/**/*.sol'",
     "deploy:harmony:mainnet": "npx hardhat run  --network harmony_mainnet",
     "deploy:bsc:mainnet": "npx hardhat run  --network bsc_mainnet",

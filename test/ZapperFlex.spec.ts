@@ -2,19 +2,11 @@ import { expect } from "chai";
 import { MockContract, MockProvider } from "ethereum-waffle";
 import { Wallet } from "ethers";
 import { ethers, waffle } from "hardhat";
-import { ZapperFlex } from "../typechain";
 import mockRouterABI from "../artifacts/contracts/mocks/RouterMock.sol/RouterMock.json";
 import pairMockABI from "../artifacts/contracts/mocks/PairMock.sol/PairMock.json";
 import inputTokenMockABI from "../artifacts/contracts/mocks/InputTokenMock.sol/InputTokenMock.json";
-
-interface ZapInFlexArgs {
-  _tokenInAddress: string;
-  _pairAddress: string;
-  _tokenInAmount: number;
-  _routerAddress: string;
-  _pathTokenInToLp0: string[];
-  _pathTokenInToLp1: string[];
-}
+import { ZapInArgs } from "./types";
+import { ZapperFlex } from "../typechain";
 
 describe("ZapperFlex", () => {
   let user: Wallet;
@@ -24,7 +16,7 @@ describe("ZapperFlex", () => {
   let pairMock: MockContract;
   let inputTokenMock: MockContract;
 
-  let zapInputArgs: ZapInFlexArgs;
+  let zapInputArgs: ZapInArgs;
 
   beforeEach(async () => {
     provider = waffle.provider;
@@ -42,7 +34,7 @@ describe("ZapperFlex", () => {
     zapper = await ZapperFlex.deploy();
   });
 
-  function tryZapIn(zapInputArgs: ZapInFlexArgs) {
+  function tryZapIn(zapInputArgs: ZapInArgs) {
     return zapper.zapInWithPath(
       zapInputArgs._tokenInAddress,
       zapInputArgs._pairAddress,

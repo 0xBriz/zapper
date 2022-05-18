@@ -1,6 +1,6 @@
 import * as dotenv from "dotenv";
 
-import { HardhatUserConfig, task } from "hardhat/config";
+import { HardhatUserConfig } from "hardhat/config";
 import "@nomiclabs/hardhat-etherscan";
 import "@nomiclabs/hardhat-waffle";
 import "@typechain/hardhat";
@@ -11,8 +11,22 @@ import "@openzeppelin/hardhat-upgrades";
 dotenv.config();
 
 const config: HardhatUserConfig = {
-  solidity: "0.8.4",
+  solidity: {
+    version: "0.8.4",
+    settings: {
+      optimizer: {
+        enabled: true,
+        runs: 200,
+      },
+    },
+  },
   networks: {
+    hardhat: {
+      forking: {
+        url: process.env.BSC_ARCHIVE_NODE,
+        blockNumber: 17909692,
+      },
+    },
     bsc_mainnet: {
       url: process.env.BSC_MAINNET_URL || "",
       accounts:
@@ -20,15 +34,7 @@ const config: HardhatUserConfig = {
           ? [process.env.BSC_MAINNET_DEV_KEY]
           : [],
     },
-    harmony_mainnet: {
-      url: process.env.HARMONY_MAINNET_URL || "",
-      accounts:
-        process.env.HARMONY_MAINNET_DEV_KEY !== undefined
-          ? [process.env.HARMONY_MAINNET_DEV_KEY]
-          : [],
-    },
   },
-
   gasReporter: {
     enabled: process.env.REPORT_GAS !== undefined,
     currency: "USD",
