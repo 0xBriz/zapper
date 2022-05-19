@@ -24,7 +24,7 @@ const config: HardhatUserConfig = {
     hardhat: {
       forking: {
         url: process.env.BSC_ARCHIVE_NODE,
-        blockNumber: 17909692,
+        blockNumber: 17936340,
       },
     },
     bsc_mainnet: {

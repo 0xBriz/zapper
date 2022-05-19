@@ -1,7 +1,7 @@
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { expect } from "chai";
 import { ethers } from "hardhat";
-import { FeeZapper } from "../typechain";
+import { FeeZapper, ZapperFlex } from "../typechain";
 import { ERC20_ABI } from "./abis/erc20-abi";
 import { UNI_ROUTER_ABI } from "./abis/UniRouterABI";
 import { UNIV2_PAIR_ABI } from "./abis/UniV2Pair";
@@ -9,6 +9,7 @@ import { ZapInArgs, ZERO } from "./types";
 
 describe("FeeZapper", () => {
   let zapper: FeeZapper;
+  let oldZapper: ZapperFlex;
 
   const TREASURY_MULTISIG_ADDRESS =
     "0x6bcC0E231A4Ac051b68DBC62F8882c04e2bA9F77";
@@ -47,6 +48,9 @@ describe("FeeZapper", () => {
     owner = accounts[0];
     const FeeZapper = await ethers.getContractFactory("FeeZapper");
     zapper = await FeeZapper.deploy(treasury, devAccount);
+
+    const ZapperFlex = await ethers.getContractFactory("ZapperFlex");
+    oldZapper = await ZapperFlex.deploy();
   });
 
   router = new ethers.Contract(
@@ -102,6 +106,26 @@ describe("FeeZapper", () => {
     console.log("BUSD balance: " + ethers.utils.formatEther(busdBalance));
   }
 
+  async function swapForAmes() {
+    await swapForTestTokens();
+    const BusdToAmesPath = [BUSD_ADDRESS, AMES_ADDRESS];
+    const block = await ethers.provider.getBlock(
+      await ethers.provider.getBlockNumber()
+    );
+    await busdToken.approve(router.address, ethers.constants.MaxUint256);
+    const expires = block.timestamp + 1000 * 60 * 2;
+    await router.swapExactTokensForTokens(
+      ethers.utils.parseEther("100"),
+      0,
+      BusdToAmesPath,
+      owner.address,
+      expires
+    );
+
+    const busdBalance = await busdToken.balanceOf(owner.address);
+    console.log("BUSD balance: " + ethers.utils.formatEther(busdBalance));
+  }
+
   describe("Zapping In", () => {
     it("should quote fees", async () => {
       const inputAmount = ethers.utils.parseEther("100");
@@ -129,24 +153,38 @@ describe("FeeZapper", () => {
         _pathTokenInToLp0: lpToken0Path,
         _pathTokenInToLp1: lpToken1Path,
       };
-
-      //   await swapForTestTokens();
+      // await swapForTestTokens();
       //   const busdBalance = await busdToken.balanceOf(owner.address);
       //   console.log("BUSD balance: " + ethers.utils.formatEther(busdBalance));
-      await busdToken.approve(zapper.address, ethers.constants.MaxUint256);
-      await tryZapIn(args);
-      //   const lpBalance = await pairAmesBusdToken.balanceOf(owner.address);
+      //   let lpBalance = await pairAmesBusdToken.balanceOf(owner.address);
       //   console.log("LP balance: " + ethers.utils.formatEther(lpBalance));
-      //   expect(lpBalance).to.not.equal(0);
+      //   await pairAmesBusdToken.transfer(
+      //     ethers.constants.AddressZero,
+      //     await pairAmesBusdToken.balanceOf(owner.address)
+      //   );
+      //   await busdToken.approve(zapper.address, ethers.constants.MaxUint256);
+      //   await tryZapIn(args);
+      //   await busdToken.approve(oldZapper.address, ethers.constants.MaxUint256);
+      //   await oldZapper.zapInWithPath(
+      //     args._tokenInAddress,
+      //     args._pairAddress,
+      //     args._tokenInAmount,
+      //     args._routerAddress,
+      //     args._pathTokenInToLp0,
+      //     args._pathTokenInToLp1
+      //   );
 
-      const treasuryBalance = await busdToken.balanceOf(treasury);
-      console.log(
-        "Treasury balance: " + ethers.utils.formatEther(treasuryBalance)
-      );
-      const devAccountBalance = await busdToken.balanceOf(devAccount);
-      console.log(
-        "Team balance: " + ethers.utils.formatEther(devAccountBalance)
-      );
+      //   lpBalance = await pairAmesBusdToken.balanceOf(owner.address);
+      //   console.log("LP balance: " + ethers.utils.formatEther(lpBalance));
+
+      //   const treasuryBalance = await busdToken.balanceOf(treasury);
+      //   console.log(
+      //     "Treasury balance: " + ethers.utils.formatEther(treasuryBalance)
+      //   );
+      //   const devAccountBalance = await busdToken.balanceOf(devAccount);
+      //   console.log(
+      //     "Team balance: " + ethers.utils.formatEther(devAccountBalance)
+      //   );
     });
   });
 

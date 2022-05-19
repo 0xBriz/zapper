@@ -8,10 +8,8 @@
     "build": "npx hardhat compile",
     "test": "npx hardhat test --network localhost",
     "format": "npx prettier --write 'contracts/**/*.sol'",
-    "deploy:harmony:mainnet": "npx hardhat run  --network harmony_mainnet",
-    "deploy:bsc:mainnet": "npx hardhat run  --network bsc_mainnet",
-    "deploy:upgrades:local": "npx hardhat run --network localhost",
-    "deploy:upgrades:testnet": "npx hardhat run --network harmony_testnet"
+    "deploy:bsc": "npx hardhat run  --network bsc_mainnet",
+    "deploy:local": "npx hardhat run --network localhost"
   },
   "keywords": [],
   "author": "",
